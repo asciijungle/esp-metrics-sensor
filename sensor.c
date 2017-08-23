@@ -11,8 +11,9 @@
 #include "sensor.h"
 #include "main.h"
 
-char* getTempMsg(int value);
-char* getHumidMsg(int value);
+void getTempMsg(char* buffer, int value);
+void getHumidMsg(char* buffer, int value);
+void getValueString(char* buffer, int value);
 
 uint8_t const dht_gpio = 4; // data wire for the dht11
 const dht_sensor_type_t sensor_type = DHT_TYPE_DHT11;
@@ -33,11 +34,13 @@ void dhtMeasurementTask(void *pvParameters)
         if (dht_read_data(sensor_type, dht_gpio, &humidity, &temperature)) {
 
             vTaskDelayUntil(&xLastWakeTime, 20000 / portTICK_PERIOD_MS);
-            char* tempMsg = getTempMsg(temperature);
+            char tempMsg[64];
+            getTempMsg(tempMsg, temperature);
             if (xQueueSend(mqtt_msg_queue, (void *)tempMsg, 0) == pdFALSE) {
                 printf("Publish queue overflow.\r\n");
             }
-            char* humidMsg = getHumidMsg(humidity);
+            char humidMsg[64];
+            getHumidMsg(humidMsg, humidity);
             if (xQueueSend(mqtt_msg_queue, (void *)humidMsg, 0) == pdFALSE) {
                 printf("Publish queue overflow.\r\n");
             }
@@ -48,21 +51,29 @@ void dhtMeasurementTask(void *pvParameters)
 }
 
 // renders the message format for a temperature value
-char* getTempMsg(int value)
+void getTempMsg(char* buffer, int value)
 {
-    char msg[PUB_MSG_LEN];
-    snprintf(msg, PUB_MSG_LEN, 
-        "weather,location=livingroom temperature=%d\n",
-        value / 10);
-    return msg;
+    const char* template = "temperature,location=livingroom value=";
+    char intString[5];
+    getValueString(intString, value);
+    strcpy(buffer,template);
+    strcat(buffer,intString);
 }
 
 // renders the message format for a humidity value
-char* getHumidMsg(int value)
+void getHumidMsg(char* buffer, int value)
 {
-    char msg[PUB_MSG_LEN];
-    snprintf(msg, PUB_MSG_LEN, 
-        "weather,location=livingroom humidity=%d\n",
-        value / 10);
-    return msg;
+    const char* template = "humidity,location=livingroom value=";
+    char intString[5];
+    getValueString(intString, value);
+    strcpy(buffer,template);
+    strcat(buffer,intString);
 }
+
+void getValueString(char* buffer, int value)
+{
+    int beforeDecimal = value / 10;
+    int afterDecimal = value % 10;
+    snprintf(buffer,5,"%i.%i",beforeDecimal,afterDecimal);
+}
+

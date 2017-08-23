@@ -106,7 +106,7 @@ void  mqtt_task(void *pvParameters)
                 printf("got message to publish: %s\n", msg);
                 mqtt_message_t message;
                 message.payload = msg;
-                message.payloadlen = PUB_MSG_LEN;
+                message.payloadlen = strlen(msg);
                 message.dup = 0;
                 message.qos = MQTT_QOS1;
                 message.retained = 0;
